@@ -22,13 +22,13 @@
 
 **Bộ siêu tham số đã chọn:** `n_estimators=100`, `learning_rate=0.2`, `max_depth=5`.
 
-**Lý do:** Lần chạy 5 có f1_score cao nhất (0,7207) và vượt ngưỡng 0,65. Lần có accuracy cao nhất lại là lần 1 (0,878), nhưng f1 của nó thấp hơn: accuracy chỉ dao động trong khoảng 0,846–0,878, còn f1 chênh tới 0,115, nên accuracy không phân biệt được mô hình tốt và mô hình kém trên lớp thiểu số. Lần 2 vẫn đạt accuracy 0,846 nhưng f1 chỉ 0,605, dưới ngưỡng. Về đánh đổi, giảm `learning_rate` từ 0,1 xuống 0,05 phải tăng `n_estimators` lên 200 (lần 4) mà vẫn chưa bằng lần 1; cây sâu hơn (`max_depth=5`) cùng `learning_rate` lớn hơn hội tụ nhanh nhất với 100 cây.
+**Lý do:** Lần 5 có f1_score cao nhất (0,7207), vượt ngưỡng 0,65. Lần có accuracy cao nhất là lần 1, không trùng với lần có f1 cao nhất: accuracy chỉ dao động 0,846–0,878 trong khi f1 chênh tới 0,115, nên accuracy không phân biệt được mô hình tốt trên lớp thiểu số. Về đánh đổi, giảm `learning_rate` xuống 0,05 phải tăng lên 200 cây (lần 4) mà vẫn kém lần 1.
 
 ---
 
 ## 2. Vì Sao Ngưỡng Chất Lượng Đặt Trên F1 Chứ Không Phải Accuracy
 
-Chỉ 24,8% mẫu thuộc lớp thu nhập > 50K, nên một mô hình luôn trả lời "thu nhập thấp" đã đạt accuracy 0,752 dù không nhận ra được người thu nhập cao nào (f1 = 0). Accuracy bị lớp đa số chi phối nên con số cao dễ gây hiểu nhầm là mô hình tốt. F1 của lớp dương là trung bình điều hòa giữa precision và recall của chính lớp thu nhập cao, vì vậy nó chỉ cao khi mô hình vừa tìm được phần lớn người thu nhập cao vừa ít báo nhầm. Không dùng `average="weighted"` hay `"macro"` vì lớp đa số sẽ kéo điểm lên: với mô hình đã chọn, weighted F1 là 0,87 trong khi F1 lớp dương chỉ 0,72, và ngưỡng 0,65 sẽ mất tác dụng chặn mô hình kém.
+Chỉ 24,8% mẫu có thu nhập > 50K, nên mô hình luôn đoán "thu nhập thấp" vẫn đạt accuracy 0,752 dù không nhận ra người thu nhập cao nào. Lần chạy kiểm chứng của em (ảnh 07) cho đúng kết quả này: accuracy 0,752, f1 = 0, và Quality Gate đã chặn Release. F1 của lớp dương kết hợp precision và recall của chính lớp thu nhập cao, nên chỉ cao khi mô hình vừa tìm được nhiều người thu nhập cao vừa ít báo nhầm. Không dùng `average="weighted"`/`"macro"` vì lớp đa số kéo điểm lên: với mô hình đã chọn, weighted F1 là 0,87 còn F1 lớp dương chỉ 0,72.
 
 ---
 
@@ -36,9 +36,9 @@ Chỉ 24,8% mẫu thuộc lớp thu nhập > 50K, nên một mô hình luôn tr�
 
 | Khó khăn | Nguyên nhân | Cách giải quyết |
 |---|---|---|
-| `pip install` thất bại trên máy cá nhân. | Python mặc định là 3.14, không có wheel cho scikit-learn 1.4.2 và pandas 2.2.2. | Dùng `uv` cài Python 3.10 và tạo `.venv`, khớp với phiên bản trong CI. |
-| `import mlflow` báo thiếu `pkg_resources`. | Môi trường mới không có setuptools mà mlflow 2.13 cần. | Thêm `setuptools<81` vào `requirements.txt`. |
-| Hướng dẫn viết cho GCP nhưng em dùng AWS. | Lab cho chọn provider. | Đổi sang `dvc[s3]` + `boto3`, hạ tầng (S3, IAM, EC2) viết bằng Terraform trong `infra/`. |
+| `pip install` thất bại trên máy. | Python 3.14 không có wheel cho scikit-learn 1.4.2. | Dùng `uv` tạo `.venv` Python 3.10, khớp với CI. |
+| `dvc push` và tạo EC2 bị `AccessDenied`. | IAM user hằng ngày thiếu quyền S3/EC2. | Viết hạ tầng bằng Terraform (`infra/`), apply bằng tài khoản quản trị; CI dùng user chỉ có quyền trên bucket. |
+| Hướng dẫn viết cho GCP. | Em chọn AWS. | Dùng `dvc[s3]` + `boto3`; model mới vào `artifacts/candidate/`, chỉ promote sang `artifacts/current/` khi qua Quality Gate. |
 
 ---
 
@@ -46,17 +46,17 @@ Chỉ 24,8% mẫu thuộc lớp thu nhập > 50K, nên một mô hình luôn tr�
 
 | | f1_score | accuracy |
 |---|---|---|
-| Bước 2 (chỉ `train_batch1`) | ___ | ___ |
-| Bước 3 (thêm `train_batch2`) | ___ | ___ |
+| Bước 2 (chỉ `train_batch1`) | 0.7207 | 0.876 |
+| Bước 3 (thêm `train_batch2`) | 0.7297 | 0.880 |
 
-**Nhận xét:** ___
+**Nhận xét:** Gấp đôi dữ liệu chỉ làm f1 tăng 0,009, tương đương khoảng một dự đoán đúng thêm trên holdout 500 mẫu. Hai nửa dữ liệu được chia ngẫu nhiên từ cùng một nguồn (tỷ lệ lớp dương đều 24,8%) nên dữ liệu mới gần như không mang thông tin mới. Điều Bước 3 chứng minh là quy trình: một commit file `.dvc` tự kích hoạt cả 4 job và VM tự phục vụ model mới.
 
 ---
 
 ## 5. Phần Bonus Đã Thực Hiện (nếu có)
 
-- [ ] Bonus 1 - Tracking MLflow từ xa với DagsHub: `train.py` và `cicd.yml` đã đọc `MLFLOW_TRACKING_URI` từ secrets, chưa cấu hình tài khoản DagsHub.
-- [x] Bonus 2 - Điều chỉnh ngưỡng quyết định: ngưỡng tốt nhất 0,30 cho F1 0,7463, cao hơn F1 0,7207 tại ngưỡng 0,5, vì hạ ngưỡng giúp bắt thêm người thu nhập cao (recall đang thấp).
-- [x] Bonus 3 - Báo cáo precision / recall tự động: `outputs/detail.txt` (lớp cao: precision 0,82, recall 0,65); nếu dùng để xét hỗ trợ tài chính thì gán nhầm người thu nhập thấp thành cao (precision thấp) tốn kém hơn vì họ bị loại khỏi diện hỗ trợ.
-- [x] Bonus 4 - Hoàn trả về phiên bản trước: Quality Gate so f1 mới với `artifacts/current/report.json`, chỉ promote model từ `artifacts/candidate/` khi f1 mới >= f1 cũ.
-- [x] Bonus 5 - Cảnh báo lệch lạc dữ liệu: `train.py` in `::warning::` khi tỷ lệ lớp dương lệch quá 5 điểm % so với 24,8% và ghi `train_positive_rate` vào `report.json`.
+- [ ] Bonus 1 - DagsHub: code đã đọc `MLFLOW_TRACKING_URI` từ secrets, chưa cấu hình tài khoản DagsHub.
+- [x] Bonus 2 - Ngưỡng quyết định: ngưỡng 0,30 cho F1 0,7463 (ngưỡng 0,5: 0,7207), vì hạ ngưỡng giúp tăng recall lớp thu nhập cao.
+- [x] Bonus 3 - Precision/recall: `outputs/detail.txt` (lớp cao: precision 0,82, recall 0,65); nếu dùng để xét hỗ trợ tài chính thì gán nhầm người thu nhập thấp thành cao tốn kém hơn vì họ mất quyền hỗ trợ.
+- [x] Bonus 4 - Rollback guard: so f1 mới với `artifacts/current/report.json` (Bước 3: 0,7297 vs 0,7207), chỉ triển khai khi f1 mới >= f1 cũ.
+- [x] Bonus 5 - Lệch lạc dữ liệu: cảnh báo khi tỷ lệ lớp dương lệch > 5 điểm % so với 24,8%, ghi `train_positive_rate` vào `report.json`.
