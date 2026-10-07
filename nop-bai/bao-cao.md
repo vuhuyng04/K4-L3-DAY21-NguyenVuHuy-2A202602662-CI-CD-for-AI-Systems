@@ -2,11 +2,11 @@
 
 | | |
 |---|---|
-| Họ và tên | ___ |
-| MSSV | ___ |
+| Họ và tên | Nguyễn Vũ Huy |
+| MSSV | 2A202602662 |
 | Lớp / Khóa | K4 |
 | Repo GitHub | https://github.com/vuhuyng04/K4-L3L4-Track2-Day21-CI-CD-for-AI-Systems |
-| Ngày nộp | ___ |
+| Ngày nộp | 07/10/2026 |
 
 ---
 
