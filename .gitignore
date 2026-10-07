@@ -11,3 +11,11 @@ sa-key.json
 __pycache__/
 *.pyc
 .DS_Store
+mlruns/
+
+# Terraform (state chua secret access key)
+infra/.terraform/
+infra/*.tfstate
+infra/*.tfstate.*
+infra/*.tfplan
+.playwright-mcp/

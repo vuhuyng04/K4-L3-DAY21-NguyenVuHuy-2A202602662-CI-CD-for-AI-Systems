@@ -1,0 +1,50 @@
+#!/bin/bash
+# Cloud-init: cai dat income-api tren Ubuntu 22.04 (chay mot lan khi VM khoi tao).
+set -euxo pipefail
+
+# Swap 2GB: t3.micro chi co 1GB RAM, pip install scikit-learn de bi thieu bo nho
+if [ ! -f /swapfile ]; then
+  fallocate -l 2G /swapfile
+  chmod 600 /swapfile
+  mkswap /swapfile
+  swapon /swapfile
+  echo '/swapfile none swap sw 0 0' >> /etc/fstab
+fi
+
+apt-get update
+apt-get install -y python3-pip curl
+
+# Phien ban phai khop moi truong train (requirements.txt) de joblib.load doc duoc model
+pip3 install --no-cache-dir \
+  numpy==1.26.4 scikit-learn==1.4.2 joblib==1.4.2 \
+  fastapi==0.111.0 uvicorn==0.29.0 boto3==1.34.84
+
+mkdir -p /home/ubuntu/src /home/ubuntu/models
+cat > /home/ubuntu/src/serve.py <<'SERVE_PY'
+${serve_py}
+SERVE_PY
+chown -R ubuntu:ubuntu /home/ubuntu/src /home/ubuntu/models
+
+# Thong tin xac thuc S3 lay tu instance profile (IAM role), khong can access key
+cat > /etc/systemd/system/income-api.service <<'UNIT'
+[Unit]
+Description=Income Model Inference Server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=ubuntu
+WorkingDirectory=/home/ubuntu
+Environment="ARTIFACT_BUCKET=${bucket}"
+Environment="AWS_DEFAULT_REGION=${region}"
+ExecStart=/usr/bin/python3 /home/ubuntu/src/serve.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+systemctl daemon-reload
+# Chi enable, chua start: model chua co tren S3 cho den khi pipeline Release chay lan dau
+systemctl enable income-api
