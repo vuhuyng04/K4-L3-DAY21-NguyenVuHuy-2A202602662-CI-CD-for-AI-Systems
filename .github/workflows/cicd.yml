@@ -160,8 +160,10 @@ jobs:
           f1 = float(os.environ["F1"])
           threshold = 0.65
           if f1 < threshold:
-              raise SystemExit(f"FAILED: f1_score {f1:.4f} < {threshold}. Huy trien khai.")
-          print(f"PASSED: f1_score {f1:.4f} >= {threshold}.")
+              # ::error:: -> hien thanh annotation tren trang Summary (xem duoc khi chua dang nhap)
+              print(f"::error title=Quality Gate::FAILED: f1_score {f1:.4f} < {threshold}. Huy trien khai.")
+              raise SystemExit(1)
+          print(f"::notice title=Quality Gate::PASSED: f1_score {f1:.4f} >= {threshold}.")
           PYEOF
 
       - name: Compare with production model (rollback guard)
@@ -193,10 +195,12 @@ jobs:
                   raise SystemExit(0)
               raise
           old_f1 = float(json.loads(body)["f1_score"])
-          print(f"So sanh: f1 moi = {new_f1:.4f} | f1 dang phuc vu = {old_f1:.4f} | chenh lech = {new_f1 - old_f1:+.4f}")
+          summary = f"f1 moi = {new_f1:.4f} | f1 dang phuc vu = {old_f1:.4f} | chenh lech = {new_f1 - old_f1:+.4f}"
+          print(f"So sanh: {summary}")
           if new_f1 < old_f1:
-              raise SystemExit("ROLLBACK GUARD: model moi kem hon model dang phuc vu -> giu nguyen phien ban cu, huy trien khai.")
-          print("OK: model moi >= model dang phuc vu -> tiep tuc trien khai.")
+              print(f"::error title=Rollback guard::Model moi kem hon model dang phuc vu ({summary}) -> giu phien ban cu, huy trien khai.")
+              raise SystemExit(1)
+          print(f"::notice title=Rollback guard::OK ({summary}) -> tiep tuc trien khai.")
           PYEOF
 
 
