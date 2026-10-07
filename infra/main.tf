@@ -1,12 +1,6 @@
 # -----------------------------------------------------------------------------
 # S3 bucket: dvc/ (du lieu) va artifacts/ (model + report)
-# Bucket da duoc tao bang CLI truoc do -> import vao state thay vi tao moi.
 # -----------------------------------------------------------------------------
-import {
-  to = aws_s3_bucket.lab
-  id = var.bucket_name
-}
-
 resource "aws_s3_bucket" "lab" {
   bucket = var.bucket_name
 }
